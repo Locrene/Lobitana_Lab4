@@ -1,0 +1,55 @@
+spring:
+  application:
+    name: lab4-tiangge
+  datasource:
+    # File-backed H2 so the feed cursor, processed events and orders survive a restart (Stage 4).
+    url: ${DB_URL:jdbc:h2:file:./data/lab4;DB_CLOSE_ON_EXIT=FALSE;LOCK_TIMEOUT=10000}
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  h2:
+    console:
+      enabled: true
+
+server:
+  port: ${PORT:8080}
+
+app:
+  # X-Client-Id / LegacySupply <ClientId>: your student id.
+  student-id: ${STUDENT_ID:}
+  # Shared API key from https://legacysupply.onrender.com/key - NEVER hardcode this.
+  api-key: ${API_KEY:}
+  app-name: ${APP_NAME:lab4-tiangge}
+
+tiangge:
+  base-url: ${TIANGGE_BASE_URL:https://legacysupply.onrender.com/tiangge/v1}
+  # Poll the order feed often enough to decide well inside the 60s deadline.
+  poll-interval-ms: ${TIANGGE_POLL_MS:4000}
+  feed-page-size: 50
+  max-pages-per-cycle: 20
+  heartbeat-seconds: 30
+  connect-timeout-ms: 5000
+  read-timeout-ms: 10000
+
+legacysupply:
+  base-url: ${LEGACYSUPPLY_BASE_URL:https://legacysupply.onrender.com/api/v1}
+  delivery-poll-ms: ${LS_DELIVERY_POLL_MS:8000}
+  connect-timeout-ms: 5000
+  read-timeout-ms: 10000
+
+logging:
+  file:
+    # Everything the console shows is also kept here, for the reflection and for looking back.
+    name: logs/lab4.log
+  logback:
+    rollingpolicy:
+      max-file-size: 20MB
+  level:
+    edu.cit.lobitana: INFO
+  pattern:
+    console: "%d{HH:mm:ss.SSS} %-5level [%thread] %logger{30} - %msg%n"

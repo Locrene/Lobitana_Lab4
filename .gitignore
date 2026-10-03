@@ -1,0 +1,27 @@
+# build output
+target/
+
+# runtime state: the H2 database holding the feed cursor, processed events and orders
+data/
+*.db
+*.mv.db
+*.trace.db
+
+# secrets - the API key and student id are read from the environment, never committed
+.env
+*.env
+!.env.example
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# logs
+*.log
+
+# file log written by the running app
+logs/
