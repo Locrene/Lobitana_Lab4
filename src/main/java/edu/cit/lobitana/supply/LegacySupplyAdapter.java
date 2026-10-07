@@ -80,6 +80,11 @@ class LegacySupplyAdapter implements SupplierPort {
     }
 
     @Override
+    public boolean deliveryAnswerPending(String sku) {
+        return deliveries.answerPending(sku);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public boolean hasOpenPurchaseOrder(String sku) {
         return !purchaseOrders.findBySkuAndReceivedAtIsNull(sku).isEmpty();

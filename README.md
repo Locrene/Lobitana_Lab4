@@ -22,6 +22,12 @@ events and the orders, and without it the next start reads the feed from the beg
 order again. And **always start from this folder** (the scripts do that themselves), because the database
 path is relative. Stop the app with Ctrl+C; start it again the same way and it carries on from the cursor.
 
+The one time `data/` should be empty is after "Reset my Tiangge record" on the self-check page. The reset
+deletes the marketplace's orders, so a database that still holds them would keep waiting orders and outbox
+rows for orders that no longer exist. Stop the app, wait at least 25 minutes (a delivery seen shortly before
+a reset is re-checked against a stock history the reset has just cleared), press the reset, move `data/`
+aside, then start.
+
 Watch the startup line `=== instance <uuid> started at ... ===` — that UUID is what the self-check page
 shows, because it is sent as `X-Client-Instance` on every call to both services.
 

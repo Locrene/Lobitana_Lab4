@@ -15,8 +15,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import edu.cit.lobitana.common.StockAnnouncement;
 import edu.cit.lobitana.inventory.InventoryService;
 import edu.cit.lobitana.inventory.StockLevelChangedEvent;
+import edu.cit.lobitana.supply.SupplierPort;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 
@@ -54,6 +56,8 @@ class StockSyncListener {
     private final ListingRepository listings;
     private final ChannelOrderRepository channelOrders;
     private final InventoryService inventory;
+    private final SupplierPort supplier;
+    private final StockAnnouncement announcement;
 
     private final BlockingQueue<String> changed = new LinkedBlockingQueue<>();
     /** SKUs already waiting in the queue, so a burst of events for one SKU becomes one update. */
@@ -70,7 +74,11 @@ class StockSyncListener {
     StockSyncListener(TianggeClient client,
                       ListingRepository listings,
                       ChannelOrderRepository channelOrders,
-                      InventoryService inventory) {
+                      InventoryService inventory,
+                      SupplierPort supplier,
+                      StockAnnouncement announcement) {
+        this.supplier = supplier;
+        this.announcement = announcement;
         this.client = client;
         this.listings = listings;
         this.channelOrders = channelOrders;
@@ -139,7 +147,9 @@ class StockSyncListener {
                 sending = true;
                 // Every answer the marketplace is owed goes first, so a number never arrives ahead of
                 // the accepted order (or filled backorder) that is already counted in it.
-                waitWhile(this::answersAreOwed);
+                // So does a supplier answer that is still on its way for one of these SKUs: if it says
+                // "delivered", the units are booked (and waiting orders filled) before the number is sent.
+                waitWhile(() -> skus.stream().anyMatch(supplier::deliveryAnswerPending) || answersAreOwed());
                 // From here on a new change of these SKUs asks for a new update.
                 skus.forEach(queued::remove);
                 publish(skus);
@@ -165,6 +175,7 @@ class StockSyncListener {
         if (numbers.isEmpty()) {
             return;
         }
+        announcement.begin();
         try {
             client.publishStock(numbers);
             for (int i = 0; i < listed.size(); i++) {
@@ -179,8 +190,12 @@ class StockSyncListener {
                 return;
             }
             log.warn("could not publish stock for {} yet, trying again: {}", listed, ex.getMessage());
+            announcement.end();
             Thread.sleep(RETRY_PAUSE_MS);
             listed.forEach(this::publishSoon);
+            announcement.begin();
+        } finally {
+            announcement.end();
         }
     }
 

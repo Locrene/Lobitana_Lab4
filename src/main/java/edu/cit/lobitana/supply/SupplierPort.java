@@ -22,6 +22,12 @@ public interface SupplierPort {
     /** The LegacySupply SupplierSku we restock this shop SKU from. */
     Optional<String> supplierSkuFor(String sku);
 
+    /**
+     * True while the supplier may already have answered "delivered" for this SKU without the units being in
+     * inventory yet (a status request is on its way, or its answer was lost). Lasts moments.
+     */
+    boolean deliveryAnswerPending(String sku);
+
     /** True when a purchase order for this SKU is placed but not yet delivered. */
     boolean hasOpenPurchaseOrder(String sku);
 

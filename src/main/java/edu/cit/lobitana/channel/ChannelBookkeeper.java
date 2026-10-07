@@ -11,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import edu.cit.lobitana.order.OrderLineRequest;
 import edu.cit.lobitana.order.OrderService;
-import edu.cit.lobitana.order.OrderStatus;
 import edu.cit.lobitana.order.PlacementResult;
 
 /**
@@ -55,30 +54,6 @@ class ChannelBookkeeper {
                 .orElseGet(() -> new FeedCursorState(0L));
         cursor.advanceTo(seq);
         cursors.save(cursor);
-    }
-
-    /**
-     * The marketplace cleared its record of this shop (the self-check page's "start over"), so its feed
-     * begins again at the first event. The cursor follows, and orders that were still waiting for stock on
-     * behalf of marketplace orders that no longer exist are cancelled, so they do not take the next delivery.
-     */
-    @Transactional
-    void startFeedOver() {
-        FeedCursorState cursor = cursors.findById(FeedCursorState.SINGLETON_ID)
-                .orElseGet(() -> new FeedCursorState(0L));
-        cursor.startOver();
-        cursors.save(cursor);
-        for (ChannelOrder link : channelOrders.findAll()) {
-            Long shopOrderId = link.getShopOrderId();
-            if (shopOrderId == null || shopOrderId <= 0) {
-                continue;
-            }
-            boolean waiting = orders.find(shopOrderId)
-                    .map(order -> order.getStatus() == OrderStatus.BACKORDERED).orElse(false);
-            if (waiting) {
-                orders.cancel(shopOrderId, "the marketplace no longer has this order");
-            }
-        }
     }
 
     @Transactional(readOnly = true)

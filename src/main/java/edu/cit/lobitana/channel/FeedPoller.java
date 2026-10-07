@@ -1,8 +1,5 @@
 package edu.cit.lobitana.channel;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +26,6 @@ class FeedPoller {
     private static final Logger log = LoggerFactory.getLogger(FeedPoller.class);
 
     private static final int MAX_ATTEMPTS_PER_EVENT = 6;
-    private static final Path FEED_WAS_RESET = Path.of("data", "feed-was-reset");
 
     private final TianggeClient client;
     private final FeedEventProcessor processor;
@@ -39,7 +35,6 @@ class FeedPoller {
 
     private final Map<String, Integer> failures = new ConcurrentHashMap<>();
     private final AtomicReference<Instant> lastPollAt = new AtomicReference<>();
-    private boolean markerChecked;
 
     FeedPoller(TianggeClient client,
                FeedEventProcessor processor,
@@ -60,33 +55,10 @@ class FeedPoller {
             return;
         }
         try {
-            startOverIfAsked();
             drain();
         } catch (RuntimeException ex) {
             // The marketplace is allowed to be slow or down; the next tick simply tries again.
             log.warn("could not read the Tiangge feed this time: {}", ex.getMessage());
-        }
-    }
-
-    /**
-     * The cursor is never moved back by this application on its own. The one exception is deliberate and
-     * manual: after the marketplace record has been reset on the self-check page, a file named
-     * data/feed-was-reset tells the next start that the feed begins again. The file is removed at once, so
-     * it works exactly one time.
-     */
-    private void startOverIfAsked() {
-        if (markerChecked) {
-            return;
-        }
-        markerChecked = true;
-        try {
-            if (Files.deleteIfExists(FEED_WAS_RESET)) {
-                bookkeeper.startFeedOver();
-                log.warn("{} was present: the marketplace feed was reset, reading it from the beginning once",
-                        FEED_WAS_RESET);
-            }
-        } catch (IOException ex) {
-            log.warn("could not check {}: {}", FEED_WAS_RESET, ex.getMessage());
         }
     }
 

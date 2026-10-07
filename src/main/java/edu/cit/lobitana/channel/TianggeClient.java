@@ -179,7 +179,8 @@ class TianggeClient {
             // keep the raw body
         }
         boolean retryable = status == 503 || status >= 500 || status == 429;
-        boolean settled = status == 409 || status == 404;
+        // 409 and 404 are documented as final; a request Tiangge calls invalid stays invalid too.
+        boolean settled = status == 409 || status == 404 || status == 400 || status == 422;
         if (settled) {
             log.warn("{} will not change by repeating it: {} {}", operation, code, message);
         }

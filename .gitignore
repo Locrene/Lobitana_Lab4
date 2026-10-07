@@ -3,6 +3,7 @@ target/
 
 # runtime state: the H2 database holding the feed cursor, processed events and orders
 data/
+data-*/
 *.db
 *.mv.db
 *.trace.db

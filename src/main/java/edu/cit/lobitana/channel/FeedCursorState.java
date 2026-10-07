@@ -43,12 +43,6 @@ class FeedCursorState {
         return updatedAt;
     }
 
-    /** Only for a feed the marketplace itself has started again from the beginning. */
-    void startOver() {
-        this.cursor = 0L;
-        this.updatedAt = Instant.now();
-    }
-
     void advanceTo(long seq) {
         if (seq > cursor) {
             this.cursor = seq;

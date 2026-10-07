@@ -39,7 +39,7 @@ class LegacySupplyClient {
     private static final Logger log = LoggerFactory.getLogger(LegacySupplyClient.class);
 
     private final RestClient http;
-    /** Same service, more patience: used for status polls, whose answer must not be thrown away. */
+    /** Same service, bounded patience: used for status polls, which the tracker repeats quickly. */
     private final RestClient quickHttp;
     private final AppCredentials credentials;
     private final AppInstance instance;
@@ -65,7 +65,7 @@ class LegacySupplyClient {
                 .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_XML_VALUE)
                 .build();
         JdkClientHttpRequestFactory quickFactory = new JdkClientHttpRequestFactory(httpClient);
-        quickFactory.setReadTimeout(Duration.ofMillis(Math.max(readTimeout, 12_000)));
+        quickFactory.setReadTimeout(Duration.ofMillis(Math.min(readTimeout, 8_000)));
         this.quickHttp = RestClient.builder()
                 .baseUrl(baseUrl)
                 .requestFactory(quickFactory)
@@ -127,9 +127,8 @@ class LegacySupplyClient {
 
     PurchaseOrderStatusResponse orderStatus(String poNumber) {
         // The marketplace expects the new stock within 30 seconds of LegacySupply answering "delivered".
-        // A slow answer is therefore waited for rather than abandoned and asked again: an answer that
-        // was sent but never read is a delivery this shop learns about too late. One attempt is enough,
-        // because the tracker comes back to every open order a few seconds later anyway.
+        // One attempt with a bounded wait: if no answer comes, the tracker asks again a few seconds
+        // later, which leaves room for two lost answers inside those 30 seconds.
         return quickCall("GET /purchase-orders/" + poNumber, () -> {
             String body = withSession(token -> quickHttp.get()
                     .uri("/purchase-orders/{po}", poNumber)

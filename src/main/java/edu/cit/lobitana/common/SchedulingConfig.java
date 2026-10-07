@@ -19,7 +19,7 @@ class SchedulingConfig implements AsyncConfigurer {
     @Bean
     ThreadPoolTaskScheduler taskScheduler() {
         ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
-        scheduler.setPoolSize(6);
+        scheduler.setPoolSize(10);
         scheduler.setThreadNamePrefix("sched-");
         scheduler.setWaitForTasksToCompleteOnShutdown(false);
         return scheduler;

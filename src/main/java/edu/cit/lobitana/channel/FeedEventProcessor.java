@@ -1,6 +1,7 @@
 package edu.cit.lobitana.channel;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,7 +30,8 @@ class FeedEventProcessor {
 
     private static final Logger log = LoggerFactory.getLogger(FeedEventProcessor.class);
 
-    private static final Duration STOCK_PATIENCE = Duration.ofSeconds(2);
+    private static final Duration STOCK_PATIENCE = Duration.ofSeconds(6);
+    private static final Duration KEEP_FOR_DECIDING = Duration.ofSeconds(25);
 
     private final ChannelBookkeeper bookkeeper;
     private final OrderTranslator translator;
@@ -94,8 +96,10 @@ class FeedEventProcessor {
             return;
         }
 
-        // Whatever came in a moment ago (a delivery, a cancellation) is announced before it can be sold.
-        stockSync.awaitRisesPublished(STOCK_PATIENCE);
+        // One thing at a time towards the marketplace: the stock number that follows the previous order,
+        // delivery or cancellation goes out before the next order is taken. Otherwise this order's
+        // "accepted" could reach the marketplace ahead of a number that does not include it yet.
+        stockSync.awaitPublished(patienceFor(event));
         ChannelOrder link = bookkeeper.placeAndRecord(event, shopLines.get());
         if (link.getDecision() == null) {
             String decision = shortageDecider.decide(event.orderId(), link.getShortSkus());
@@ -108,10 +112,22 @@ class FeedEventProcessor {
         outbox.flush(event.orderId());
     }
 
+    /** Waiting for a stock number must never cost an order its own deadline. */
+    private static Duration patienceFor(FeedEvent event) {
+        if (event.decisionDeadline() == null) {
+            return STOCK_PATIENCE;
+        }
+        Duration spare = Duration.between(Instant.now(), event.decisionDeadline()).minus(KEEP_FOR_DECIDING);
+        if (spare.isNegative()) {
+            return Duration.ZERO;
+        }
+        return spare.compareTo(STOCK_PATIENCE) < 0 ? spare : STOCK_PATIENCE;
+    }
+
     private void handleOrderCancelled(FeedEvent event) {
         bookkeeper.recordCancellation(event);
         outbox.flush(event.orderId());
         // The units are back. Let the marketplace hear that before the next order may take them.
-        stockSync.awaitRisesPublished(STOCK_PATIENCE);
+        stockSync.awaitPublished(STOCK_PATIENCE);
     }
 }

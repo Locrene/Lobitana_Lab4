@@ -38,7 +38,7 @@ tiangge:
 
 legacysupply:
   base-url: ${LEGACYSUPPLY_BASE_URL:https://legacysupply.onrender.com/api/v1}
-  delivery-poll-ms: ${LS_DELIVERY_POLL_MS:8000}
+  delivery-poll-ms: ${LS_DELIVERY_POLL_MS:15000}
   connect-timeout-ms: 5000
   read-timeout-ms: 10000
 
